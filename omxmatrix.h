@@ -5,54 +5,47 @@
  * @author Billy Charlton, PSRC
  */
 #define BOOST_USE_WINDOWS_H 1
-#include <boost/thread.hpp>
 
 #include <iostream>
 #include <string>
 #include <vector>
 #include <queue>
+#include <map>
 
 #include <hdf5.h>
 #include <hdf5_hl.h>
 
 using namespace std;
 
+//--------------------------------------------------------------------
+#ifndef OMXMATRIX_H
+#define OMXMATRIX_H
+
 #define  MODE_READ    0
 #define  MODE_CREATE  1
 
 #define  MAX_TABLES  500
 
-//--------------------------------------------------------------------
-#ifndef OMXMATRIX_H
-#define OMXMATRIX_H
-
-/* OMXMatrix is a drop-in replacement for TPPMatrix.
- * 100% TP+ API Compatible:  Should require no source changes other than replacing
- * all references to TPPMatrix with H5Matrix instead.
- */
 class OMXMatrix {
 public:
     OMXMatrix();
 
     virtual  ~OMXMatrix();
 
-    void     openFile(char *fileName);
+    void     openFile(string fileName);
     void     closeFile();
 
     //Read/Open operations
-    int      getZones();
+    int      getRows();
+    int      getCols();
     int      getTables();
-    void     getRow (int table, int row, void *rowptr);  // throws InvalidOperationException, MatrixReadException
-    double   getValue(int table, int row, int j);
-    char*    getTableName(int table);
-//    T2DDoubleArray readEntireTable (int table);  //Not implemented
+    void     getRow (string table, int row, void *rowptr);  // throws InvalidOperationException, MatrixReadException
+    double   getValue(string table, int row, int j);
+    string   getTableName(int table);
 
     //Write/Create operations
-    void     createFile(int tables, int zones, char** matName, char* fileName);
-    void     writeRow(int table, int row, double* rowptr);
-
-    //Helper methods
-    double*  allocateRowBuffer();
+    void     createFile(int tables, int rows, int cols, vector<string> matNames, string fileName);
+    void     writeRow(string table, int row, double* rowptr);
 
     //Nested exception classes
     class    FileOpenException { };
@@ -62,26 +55,30 @@ public:
     class    NoSuchTableException {};
 
 //--------------------------------------------------------------------
-private:
     //Data
 
     hid_t    _h5file;
-    int      _nZones;
+    int      _nRows;
+    int      _nCols;
     int      _nTables;
     int      _mode;
     bool     _fileOpen;
 
-    char*    _tableNumber[MAX_TABLES+1];
-    char*    _tableName[MAX_TABLES+1];
-    hid_t    _dataset[MAX_TABLES+1];
-    hid_t    _dataspace[MAX_TABLES+1];
+    string   _tableName[MAX_TABLES+1];
+    
+    map<string,int> _tableLookup;
+    map<string,hid_t> _dataset;
+    map<string,hid_t> _dataspace;
+
+private:
+
     hid_t    _memspace;
 
     //Methods
     void    readTableNames();
     void    printErrorCode(int error);
-    void    init_tables (char** tableNames);
-    hid_t   openDataset(int table);  // throws InvalidOperationException
+    void    init_tables (vector<string> tableNames);
+    hid_t   openDataset(string table);  // throws InvalidOperationException
 };
 
 #endif /* OMXMATRIX_H */

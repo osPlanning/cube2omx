@@ -22,35 +22,14 @@ void printCurrentTime();
 OMXMatrix::OMXMatrix() {
     _fileOpen = false;
     _nTables = 0;
-    _nZones = 0;
+    _nRows = 0;
+    _nCols = 0;
     _memspace = -1;
-
-    for (int t=0; t < MAX_TABLES; t++) {
-        _dataset[t] = -1;
-        _dataspace[t] = -1;
-        _tableName[t] = NULL;
-        _tableNumber[t] = NULL;
-    }
 }
 
 //Destructor
 OMXMatrix::~OMXMatrix()
 {
-    // double check: release datasets and memory
-    for (int t=0; t<MAX_TABLES; t++) {
-        if (_dataset[t] != -1) {
-            H5Dclose(_dataset[t]);
-            _dataset[t] = -1;
-        }
-        if (_dataspace[t] != -1) {
-            H5Sclose(_dataspace[t]);
-            _dataspace[t] = -1;
-        }
-
-        if (_tableName[t] != NULL) free(_tableName[t]);
-        if (_tableNumber[t] != NULL) free(_tableNumber[t]);
-    }
-
     if (_memspace > -1 ) {
         H5Sclose(_memspace);
         _memspace = -1;
@@ -66,151 +45,156 @@ OMXMatrix::~OMXMatrix()
 
 //Write/Create operations ---------------------------------------------------
 
-void OMXMatrix::createFile(int tables, int zones, char** tableNames, char* fileName) {
+void OMXMatrix::createFile(int tables, int rows, int cols, vector<string> tableNames, string fileName) {
     _fileOpen = true;
     _mode = MODE_CREATE;
-    _nZones = zones;
+
+    _nRows = rows;
+    _nCols = cols;
     _nTables = tables;
 
     // Create the physical file
-    _h5file = H5Fcreate(fileName, H5F_ACC_TRUNC, H5P_DEFAULT, H5P_DEFAULT);
+    _h5file = H5Fcreate(fileName.c_str(), H5F_ACC_TRUNC, H5P_DEFAULT, H5P_DEFAULT);
     if (0 > _h5file) {
-        fprintf(stderr, "ERROR: Could not create file %s.\n", fileName);
+        fprintf(stderr, "ERROR: Could not create file %s.\n", fileName.c_str());
     }
 
-    // Initialize file properties
-    H5LTset_attribute_int(_h5file, "/", "tables", &tables, 1);
-    H5LTset_attribute_int(_h5file, "/", "zones", &zones, 1);
+    // Build SHAPE attribute
+    const int shape[2] = {rows, cols};
+
+    // Write file attributes
+    H5LTset_attribute_string(_h5file, "/", "OMX_VERSION", "0.2");
+    H5LTset_attribute_int(_h5file, "/", "SHAPE", &shape[0], 2);
+   
+    // Create folder structure
+    H5Gcreate(_h5file, "/data", NULL, NULL, NULL);
+    H5Gcreate(_h5file, "/lookup", NULL, NULL, NULL);
 
     // Create the datasets
     init_tables(tableNames);
 }
 
-void OMXMatrix::writeRow(int table, int row, double *rowdata) {
-    if ((_dataset[table] == -1) || (table > _nTables)) {
+void OMXMatrix::writeRow(string table, int row, double *rowdata) {
+    if (_tableLookup.count(table)==0) {
             throw NoSuchTableException();
     }
 
     hsize_t count[2], offset[2];
 
     count[0] = 1;
-    count[1] = _nZones;
+    count[1] = _nCols;
 
     offset[0] = row-1;
     offset[1] = 0;
 
-    if (_memspace <0 ) {
-        _memspace = H5Screate_simple(2,count,NULL);
+    if (_memspace <0 ) _memspace = H5Screate_simple(2,count,NULL);
+
+    if (_dataspace.count(table)==0) {
+        _dataspace[table] = H5Dget_space(_dataset[table]);
     }
-    if (_dataspace[table] <0 ) _dataspace[table] = H5Dget_space (_dataset[table]);
 
     H5Sselect_hyperslab (_dataspace[table], H5S_SELECT_SET, offset, NULL, count, NULL);
 
     if (0 > H5Dwrite(_dataset[table], H5T_NATIVE_DOUBLE, _memspace, _dataspace[table], H5P_DEFAULT, rowdata)) {
-        fprintf(stderr, "ERROR: writing table %d, row %d\n", table,row);
+        fprintf(stderr, "ERROR: writing table %s, row %d\n", table.c_str(), row);
         exit(2);
     }
 }
 
 //Read/Open operations ------------------------------------------------------
 
-void OMXMatrix::openFile(char *filename) {
+void OMXMatrix::openFile(string filename) {
     // Try to open the existing file
-    _h5file = H5Fopen(filename, H5F_ACC_RDONLY, H5P_DEFAULT);
+    _h5file = H5Fopen(filename.c_str(), H5F_ACC_RDONLY, H5P_DEFAULT);
     if (_h5file < 0) {
-        fprintf(stderr, "ERROR: Can't find or open file %s",filename);
+        fprintf(stderr, "ERROR: Can't find or open file %s",filename.c_str());
         exit(2);
     }
 
     // OK, it's open and it's HDF5;
-    // Now query some nice things about the file.
+    // Now query some things about the file.
     _fileOpen = true;
     _mode = MODE_READ;
 
-    herr_t status = 0;
-    status += H5LTget_attribute_int(_h5file, "/", "tables", &_nTables);
-    status += H5LTget_attribute_int(_h5file, "/", "zones", &_nZones);
+    int shape[2];
 
+    herr_t status = 0;
+    status += H5LTget_attribute_int(_h5file, "/", "SHAPE", &shape[0]);
     if (status < 0) {
-        fprintf(stderr, "ERROR: %s doesn't have table/zone attributes", filename);
+        fprintf(stderr, "ERROR: %s doesn't have table/zone attributes", filename.c_str());
         exit(2);
     }
+    _nRows = shape[0];
+    _nCols = shape[1];
 
     readTableNames();
 }
 
-int OMXMatrix::getZones() {
-    return _nZones;
+int OMXMatrix::getRows() {
+    return _nRows;
 }
+
+int OMXMatrix::getCols() {
+    return _nCols;
+}
+
 int OMXMatrix::getTables() {
     return _nTables;
 }
 
-char* OMXMatrix::getTableName(int table) {
+string OMXMatrix::getTableName(int table) {
     return _tableName[table];
 }
 
-double* OMXMatrix:: allocateRowBuffer() {
-    double *rowBuffer = (double *) malloc ( (getZones()+3) * sizeof(double));
-    if (rowBuffer == NULL) {
-        fprintf(stderr, "ERROR: Couldn't allocate memory for rowdata\n");
-        exit(2);
-    }
-
-    return rowBuffer;
-}
-
-void OMXMatrix::getRow (int table, int row, void *rowptr) {
+void OMXMatrix::getRow (string table, int row, void *rowptr) {
     hsize_t data_count[2], data_offset[2];
 
     // First see if we've opened this table already
-    if (_dataset[table] == -1) {
+    if (_dataset.count(table)==0) {
         // Does this table exist?
-        if (table > _nTables) {
+        if (_tableLookup.count(table)==0) {
             throw MatrixReadException() ;
         }
         _dataset[table] = openDataset(table);
     }
 
     data_count[0] = 1;
-    data_count[1] = _nZones;  // Need data to be nZones long
+    data_count[1] = _nCols;
     data_offset[0] = row-1;
     data_offset[1] = 0;
 
     // Create dataspace if necessary.  Don't do every time or we'll run OOM.
-    if (_dataspace[table] == -1) {
-        _dataspace[table] = H5Dget_space (_dataset[table]);
+    if (_dataspace.count(table)==0) {
+        _dataspace[table] = H5Dget_space(_dataset[table]);
     }
 
-    // Define MEMORY slab   (using data_count since we don't want to read zones+1 values!)
+    // Define MEMORY slab (using data_count since we don't want to read zones+1 values!)
     if (_memspace < 0) {
         _memspace = H5Screate_simple(2, data_count, NULL);
     }
 
     // Define DATA slab
     if (0 > H5Sselect_hyperslab (_dataspace[table], H5S_SELECT_SET, data_offset, NULL, data_count, NULL)) {
-        fprintf(stderr, "ERROR: Couldn't select DATA subregion for table %d, subrow %d.\n",table,row);
+        fprintf(stderr, "ERROR: Couldn't select DATA subregion for table %d, subrow %d.\n",
+                table.c_str(),row);
         exit(2);
     }
 
     // Read the data!
     if (0 > H5Dread(_dataset[table], H5T_NATIVE_DOUBLE, _memspace, _dataspace[table],
             H5P_DEFAULT, rowptr)) {
-        fprintf(stderr, "ERROR: Couldn't read table %d, subrow %d.\n",table,row);
+        fprintf(stderr, "ERROR: Couldn't read table %d, subrow %d.\n",table.c_str(),row);
         exit(2);
     }
 }
 
 void OMXMatrix::closeFile() {
-    for (int t=0; t<MAX_TABLES; t++) {
-        if (_dataset[t] != -1) {
-            H5Dclose(_dataset[t]);
-            _dataset[t] = -1;
-        }
-        if (_dataspace[t] != -1) {
-            H5Sclose(_dataspace[t]);
-            _dataspace[t] = -1;
-        }
+    for(map<string,hid_t>::iterator iterator = _dataset.begin(); iterator != _dataset.end(); iterator++) {
+        H5Dclose(iterator->second);
+    }
+
+    for(map<string,hid_t>::iterator iterator = _dataspace.begin(); iterator != _dataspace.end(); iterator++) {
+        H5Sclose(iterator->second);
     }
 
     if (_memspace > -1 ) {
@@ -234,54 +218,60 @@ void printCurrentTime() {
     return;
 }
 
-hid_t OMXMatrix::openDataset(int table) {
-    char tname[10];
+hid_t OMXMatrix::openDataset(string table) {
 
-    sprintf (tname, "%d", table);
-
-    hid_t data = H5Dopen(_h5file, tname, H5P_DEFAULT);
-    if (data < 0) {
+    string tname = "/data/" + table;
+    
+    hid_t dataset = H5Dopen(_h5file, tname.c_str(), H5P_DEFAULT);
+    if (dataset < 0) {
         throw InvalidOperationException();
     }
 
-    return data;
+    return dataset;
 }
 
+/*
+ * Group traversal function. Build list of tablenames from this.
+ */
+herr_t _leaf_info(hid_t loc_id, const char *name, const H5L_info_t *info, void *opdata)
+{
+    OMXMatrix *m = (OMXMatrix *) opdata;
+
+    m->_nTables++;
+    m->_tableName[m->_nTables] = name;
+    m->_tableLookup[name] = m->_nTables;
+    return 0;
+}
+
+/* Read table names.  Sets number of tables in file, too. */
 void OMXMatrix::readTableNames() {
-    char buf[255];
-    char tname[10];
 
-    for (int i=1; i <= _nTables; i++) {
-        // Convert table number to text, And pull the table name attribute
-        sprintf (tname, "%d", i);
-        _tableNumber[i] = (char*) malloc(20*sizeof(char));
+    _nTables = 0;
+    _tableLookup.clear();
+    _dataset.clear();
+    _dataspace.clear();
 
-        strcpy(_tableNumber[i], "/");
-        strcat(_tableNumber[i], tname);
+    hid_t datagroup = openDataset("/data");
 
-        // clear out buffer
-        for (int k=0;k<255; k++) buf[k] = '\0';
+    // this calls _file_info() for every child in /data
+    // in the order they were created.
+    H5Literate(datagroup, H5_INDEX_CRT_ORDER, H5_ITER_INC, NULL, _leaf_info, this);
 
-        herr_t status = H5LTget_attribute_string(_h5file, tname, "name", buf);
-
-        if (status >= 0) { // No biggie if we don't get a table name
-            _tableName[i] = (char *) calloc(255, sizeof(char));
-            strcpy (_tableName[i], buf);
-        }
-    }
+    H5Dclose(datagroup);
 }
 
-void OMXMatrix::init_tables (char** tableNames) {
-    hsize_t     dims[2]={_nZones,_nZones};
+
+
+void OMXMatrix::init_tables (vector<string> tableNames) {
+    hsize_t     dims[2]={_nRows,_nCols};
     hid_t       plist;
     herr_t      rtn;
-    char        tname[10];
     hsize_t     chunksize[2];
     double      fillvalue[1];
 
     fillvalue[0] = 0.0;
     chunksize[0] = 1;
-    chunksize[1] = _nZones;
+    chunksize[1] = _nCols;
 
     hid_t   dataspace = H5Screate_simple(2,dims, NULL);
 
@@ -292,20 +282,19 @@ void OMXMatrix::init_tables (char** tableNames) {
     rtn = H5Pset_fill_value(plist, H5T_NATIVE_DOUBLE, &fillvalue);
 
     // Loop on all TP+ tables
-    for (int t=1;t<=_nTables;t++) {
-
+    for (int t=0; t<tableNames.size(); t++) {
+        string tname = "/data/" + tableNames[t];
+        
         // Create a dataset for each table
-        sprintf (tname, "%d", t);
-        _dataset[t] = H5Dcreate2(_h5file, tname, H5T_NATIVE_DOUBLE,dataspace,
-                               H5P_DEFAULT,plist,H5P_DEFAULT);
-
-        H5LTset_attribute_int(_h5file, tname, "zones", &_nZones, 1);
-        H5LTset_attribute_string(_h5file, tname, "name", tableNames[t-1]);
-
-        if (_dataset[t]<0) {
-            fprintf(stderr, "Error creating dataset %s",tname);
+        _dataset[tableNames[t]] = H5Dcreate2(_h5file, tname.c_str(), H5T_NATIVE_DOUBLE,
+                                 dataspace, H5P_DEFAULT, plist, H5P_DEFAULT);
+        if (_dataset[tableNames[t]]<0) {
+            fprintf(stderr, "Error creating dataset %s",tname.c_str());
             exit(2);
         }
+        
+        int cube_num = t+1;
+        H5LTset_attribute_int(_h5file, tname.c_str(), "CUBE_MAT_NUMBER", &cube_num, 1);
     }
 
     rtn = H5Pclose(plist);

@@ -56,11 +56,11 @@ public:
     int      getTables();
     void     getRow (int table, int row, double *rowptr);
     double   getValue(int table, int row, int j);
-    char*    getTableName(int table);
+    const char*    getTableName(int table);
 
     //New file operations
-    void     createFile(int tables, int zones, char** matName,
-                        char* fileName);
+    void     createFile(int tables, int zones, const char** matName,
+                        const char* fileName);
     void     writeRow(int table, int row, double *rowptr);
     void     closeFile();
 
