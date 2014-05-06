@@ -11,7 +11,7 @@
 #include <hdf5_hl.h>
 
 #include "tppmatrix.h"
-#include "../util/h5matrix.h"
+#include "omxmatrix.h"
 
 #include "stdutil.h"
 #include "define.h"
@@ -25,7 +25,7 @@ string get_h5_name(char *filename);
 string get_tpp_name(char *filename);
 
 int copy_data(TPPMatrix*, hid_t, int, int);
-int copy_data(H5Matrix*, TPPMatrix*, int, int);
+int copy_data(OMXMatrix*, TPPMatrix*, int, int);
 
 hid_t _memspace = -1;
 hid_t _dataspace = -1;
@@ -104,7 +104,7 @@ int convertH5toMat(char *filename) {
 
     try {
         // Open h5 file and get dimensions, table names
-        H5Matrix *h5file = new H5Matrix();
+        OMXMatrix *h5file = new OMXMatrix();
         h5file->openFile(filename);
 
         tables = h5file->getTables();
@@ -135,7 +135,7 @@ int convertH5toMat(char *filename) {
 }
 
 // Copy from HDF5 to TPP:
-int copy_data(H5Matrix *h5file, TPPMatrix *matrix, int zones, int tables) {
+int copy_data(OMXMatrix *h5file, TPPMatrix *matrix, int zones, int tables) {
 
     // Set up some scratch space for reading row data
     double *rowdata = matrix->allocateRowBuffer();
