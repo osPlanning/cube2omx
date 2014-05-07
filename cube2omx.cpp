@@ -31,7 +31,7 @@ int main(int argc, char* argv[])
 {
     // Get cmdline parameters
     // for each input .mat file
-    printf("TP+ MAT/OMX Converter\n");
+    printf("Cube MAT/OMX Converter\n");
     int errors = 0;
 
     for (int i=1; i<argc; i++) {
