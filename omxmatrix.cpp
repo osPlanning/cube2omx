@@ -45,7 +45,7 @@ OMXMatrix::~OMXMatrix()
 
 //Write/Create operations ---------------------------------------------------
 
-void OMXMatrix::createFile(int tables, int rows, int cols, vector<string> tableNames, string fileName) {
+void OMXMatrix::createFile(int tables, int rows, int cols, vector<string> &tableNames, string fileName) {
     _fileOpen = true;
     _mode = MODE_CREATE;
 
@@ -66,10 +66,16 @@ void OMXMatrix::createFile(int tables, int rows, int cols, vector<string> tableN
     H5LTset_attribute_string(_h5file, "/", "OMX_VERSION", "0.2");
     H5LTset_attribute_int(_h5file, "/", "SHAPE", &shape[0], 2);
    
+    // save the order that matrices are written
+    hid_t plist = H5Pcreate (H5P_GROUP_CREATE);
+    H5Pset_link_creation_order(plist, H5P_CRT_ORDER_TRACKED | H5P_CRT_ORDER_INDEXED);
+   
     // Create folder structure
-    H5Gcreate(_h5file, "/data", NULL, NULL, NULL);
-    H5Gcreate(_h5file, "/lookup", NULL, NULL, NULL);
-
+    H5Gcreate(_h5file, "/data", NULL, plist, NULL);
+    H5Gcreate(_h5file, "/lookup", NULL, plist, NULL);
+    
+    H5Pclose(plist);
+    
     // Create the datasets
     init_tables(tableNames);
 }
@@ -251,18 +257,19 @@ void OMXMatrix::readTableNames() {
     _dataset.clear();
     _dataspace.clear();
 
-    hid_t datagroup = openDataset("/data");
+    hid_t datagroup = H5Gopen(_h5file, "/data", H5P_DEFAULT);
 
     // this calls _file_info() for every child in /data
     // in the order they were created.
     H5Literate(datagroup, H5_INDEX_CRT_ORDER, H5_ITER_INC, NULL, _leaf_info, this);
 
-    H5Dclose(datagroup);
+    H5Gclose(datagroup);
 }
 
 
 
-void OMXMatrix::init_tables (vector<string> tableNames) {
+void OMXMatrix::init_tables (vector<string> &tableNames) {
+
     hsize_t     dims[2]={_nRows,_nCols};
     hid_t       plist;
     herr_t      rtn;
@@ -283,18 +290,21 @@ void OMXMatrix::init_tables (vector<string> tableNames) {
 
     // Loop on all TP+ tables
     for (int t=0; t<tableNames.size(); t++) {
-        string tname = "/data/" + tableNames[t];
+        string tpath = "/data/" + tableNames[t];
+        string tname(tableNames[t]);
         
         // Create a dataset for each table
-        _dataset[tableNames[t]] = H5Dcreate2(_h5file, tname.c_str(), H5T_NATIVE_DOUBLE,
+        _dataset[tname] = H5Dcreate2(_h5file, tpath.c_str(), H5T_NATIVE_DOUBLE,
                                  dataspace, H5P_DEFAULT, plist, H5P_DEFAULT);
-        if (_dataset[tableNames[t]]<0) {
-            fprintf(stderr, "Error creating dataset %s",tname.c_str());
+        if (_dataset[tname]<0) {
+            fprintf(stderr, "Error creating dataset %s",tpath.c_str());
             exit(2);
         }
         
+        // Save the something somewhere
+        _tableLookup[tname] = t+1;
         int cube_num = t+1;
-        H5LTset_attribute_int(_h5file, tname.c_str(), "CUBE_MAT_NUMBER", &cube_num, 1);
+        H5LTset_attribute_int(_h5file, tpath.c_str(), "CUBE_MAT_NUMBER", &cube_num, 1);
     }
 
     rtn = H5Pclose(plist);

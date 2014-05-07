@@ -21,7 +21,7 @@ int convertH5toMat(char *);
 string get_h5_name(char *filename);
 string get_tpp_name(char *filename);
 
-int copy_data(TPPMatrix*, OMXMatrix*, int, int, vector<string>);
+int copy_data(TPPMatrix*, OMXMatrix*, int, int, vector<string>&);
 int copy_data(OMXMatrix*, TPPMatrix*, int, int);
 
 hid_t _memspace = -1;
@@ -29,80 +29,81 @@ hid_t _dataspace = -1;
 
 int main(int argc, char* argv[])
 {
-	// Get cmdline parameters
-	// for each input .mat file
-	printf("TP+ MAT/OMX Converter\n");
-	int errors = 0;
+    // Get cmdline parameters
+    // for each input .mat file
+    printf("TP+ MAT/OMX Converter\n");
+    int errors = 0;
 
-	for (int i=1; i<argc; i++) {
-		char *tpfilename = argv[i];
-		printf("\n\nConverting %s to ",tpfilename);
+    for (int i=1; i<argc; i++) {
+        char *tpfilename = argv[i];
+        printf("\n\nConverting %s to ",tpfilename);
 
-		// Figure out which way we're converting:
-		string str(tpfilename);
-		int v;
+        // Figure out which way we're converting:
+        string str(tpfilename);
+        int v;
 
-		if (((size_t)str.find(".omx")==string::npos) &&
-		    ((size_t)str.find(".OMX")==string::npos)) {
-	        v = convertMat2h5(tpfilename);
-	    } else {
+        if (((size_t)str.find(".omx")==string::npos) &&
+            ((size_t)str.find(".OMX")==string::npos)) {
+            v = convertMat2h5(tpfilename);
+        } else {
             v = convertH5toMat(tpfilename);
-	    }
+        }
 
-		if (v!=0) {
-			printf(">> Failed to convert %s.",tpfilename);
-			errors += v;
-		}
-	}
+        if (v!=0) {
+            printf(">> Failed to convert %s.",tpfilename);
+            errors += v;
+        }
+    }
 
-	printf("\nDone; %d errors out of %d attempted.\n",errors,argc-1);
+    printf("\nDone; %d errors and %d of %d completed.\n",errors,argc-errors-1,argc-1);
 }
 
 int convertMat2h5(char *filename) {
     int rows, cols, tables, rtn;
     TPPMatrix *matrix;
     OMXMatrix *omx;
-    
+
     vector<string> matNames;
 
-	try {
-		// try to open file
-		matrix = new TPPMatrix();
-		matrix->openFile(filename);
+    try {
+        // try to open file
+        matrix = new TPPMatrix();
+        matrix->openFile(filename);
 
-		// get tp+ parameters such as zones, tables, names.
-		rows = cols = matrix->getZones();
+        // get tp+ parameters such as zones, tables, names.
+        rows = cols = matrix->getZones();
 
         tables = matrix->getTables();
         for (int t=1; t<=tables; t++) {
-            matNames.push_back(matrix->getTableName(t));
+            string name(matrix->getTableName(t));
+            matNames.push_back(name);
         }
 
         // Create OMX file
-		string h5_name = get_h5_name(filename);
+        string h5_name = get_h5_name(filename);
         omx = new OMXMatrix();
         omx->createFile(tables, rows, cols, matNames, h5_name);
 
-		// Copy data
-		rtn = copy_data(matrix, omx, rows, tables, matNames);
+        // Copy data
+        rtn = copy_data(matrix, omx, rows, tables, matNames);
 
-		// All done
+        // All done
         matrix->closeFile();
         omx->closeFile();
 
-	} catch (TPPMatrix::FileOpenException) {
-		printf("Can't open %s.",filename);
-		return 1;
-	}
+    } catch (TPPMatrix::FileOpenException) {
+        printf("Can't open %s.",filename);
+        return 1;
+    }
 
-	return 0;
+    return 0;
 }
 
 int convertH5toMat(char *filename) {
     int zones, tables, rtn;
     TPPMatrix *tpp;
     OMXMatrix *omx;
-    const char* tnames[501];
+    const char* tnames[MAX_TABLES];
 
     try {
         // Open h5 file and get dimensions, table names
@@ -113,7 +114,7 @@ int convertH5toMat(char *filename) {
         zones  = omx->getRows();
 
         for (int t=1; t<=tables; t++) {
-            tnames[t]=omx->getTableName(t).c_str();
+            tnames[t-1]=omx->getTableName(t).c_str();
         }
 
         // create TPP file
@@ -145,11 +146,11 @@ int copy_data(OMXMatrix *omx, TPPMatrix *matrix, int zones, int tables) {
     int row;
     printf("\n");
 
-    string tableNames[500];
+    string tableNames[MAX_TABLES+1];
     for (int t = 1; t <=tables; t++) {
         tableNames[t] = omx->getTableName(t);
     }
- 
+
     // Loop on all rows
     for (row=1;row<=zones;row++) {
         if (row % 127 ==0) printf("Zone: %d\r",row);
@@ -170,15 +171,15 @@ int copy_data(OMXMatrix *omx, TPPMatrix *matrix, int zones, int tables) {
 }
 
 // Copy from TPP to HDF5:
-int copy_data(TPPMatrix *matrix, OMXMatrix *omx, int zones, int tables, vector<string> matNames) {
-	hid_t  		dataset[MAX_TABLES];
-	double* 	rowdata;
+int copy_data(TPPMatrix *matrix, OMXMatrix *omx, int zones, int tables, vector<string> &matNames) {
+    hid_t       dataset[MAX_TABLES];
+    double*     rowdata;
 
-	// Set up some scratch space for reading row data
+    // Set up some scratch space for reading row data
     rowdata = matrix->allocateRowBuffer();
 
     // Loop for each row
-	int col;
+    int col;
     for (col=1;col<=zones;col++) {
         if (col %47 == 1) printf("\r%d tables:  zone %d     ",tables, col);
         for (int t=1; t<=tables; t++) {
@@ -193,7 +194,7 @@ int copy_data(TPPMatrix *matrix, OMXMatrix *omx, int zones, int tables, vector<s
             // And write it to h5
             omx->writeRow(matNames[t-1], col, rowdata);
         }
-	}
+    }
 
     // Clean up
     printf("\r%d tables:  zone %d     \n",tables, col-1);
@@ -211,8 +212,8 @@ string get_h5_name(char *filename) {
 
     str.erase(dot,4);
     str.insert(dot,".omx");
+    printf("%s\n",str.c_str());
 
-    printf("%s, ",str.c_str());
     return str;
 }
 
@@ -224,8 +225,8 @@ string get_tpp_name(char *filename) {
 
     str.erase(dot,4);
     str.insert(dot,".mat");
+    printf("%s\n",str.c_str());
 
-    printf("%s, ",str.c_str());
     return str;
 }
 

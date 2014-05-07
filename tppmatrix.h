@@ -56,7 +56,7 @@ public:
     int      getTables();
     void     getRow (int table, int row, double *rowptr);
     double   getValue(int table, int row, int j);
-    const char*    getTableName(int table);
+    char*    getTableName(int table);
 
     //New file operations
     void     createFile(int tables, int zones, const char** matName,

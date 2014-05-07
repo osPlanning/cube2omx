@@ -4,8 +4,6 @@
  *
  * @author Billy Charlton, PSRC
  */
-#define BOOST_USE_WINDOWS_H 1
-
 #include <iostream>
 #include <string>
 #include <vector>
@@ -44,7 +42,7 @@ public:
     string   getTableName(int table);
 
     //Write/Create operations
-    void     createFile(int tables, int rows, int cols, vector<string> matNames, string fileName);
+    void     createFile(int tables, int rows, int cols, vector<string> &matNames, string fileName);
     void     writeRow(string table, int row, double* rowptr);
 
     //Nested exception classes
@@ -77,7 +75,7 @@ private:
     //Methods
     void    readTableNames();
     void    printErrorCode(int error);
-    void    init_tables (vector<string> tableNames);
+    void    init_tables (vector<string> &tableNames);
     hid_t   openDataset(string table);  // throws InvalidOperationException
 };
 

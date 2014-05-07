@@ -220,7 +220,7 @@ typedef int ( *pFunc_TppMatPos)    (MATLIST *list,DWORD loc);
 typedef int ( *pFunc_TppMatGetPos) (MATLIST *list);
 typedef int ( *pFunc_TppMatOpenOP) (MATLIST*, char*, char*, void*,char*, int);
 typedef int ( *pFunc_TppMatReadNext) (int, MATLIST*, void*);
-typedef int ( *pFunc_TppMatSet) (MATLIST **UMlist,int type,char *name,int zones,int matrices);
+typedef int ( *pFunc_TppMatSet) (MATLIST **UMlist,int type,const char *name,int zones,int matrices);
 typedef MATLIST* ( *pFunc_TppMatMatResize)(MATLIST **UMlist);
 typedef int ( *pFunc_TppMatWriteRow) (MATLIST *list, int nOrg, int nMat, int  nForm, void *matrix);
 typedef int ( *pFunc_TppMatReadDirect) (MATLIST *list,DWORD location,void *matrix);

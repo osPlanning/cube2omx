@@ -109,6 +109,7 @@ void TPPMatrix::openFile(char *fileName)
 
 	int i=0;
     int table, origin;
+    char *pLicenseFile=NULL;
 
  	i=pf_FileInquire(fileName, &_matlist);
  	if (i<0) {
@@ -120,7 +121,7 @@ void TPPMatrix::openFile(char *fileName)
  	// timeout due to retardation and bad design
 	for (int attempts = 0; attempts<MAX_DLL_ATTEMPTS; attempts++) {
 		// call the dll
-		if ((i = pf_TppMatOpenIP(_matlist, NULL, 2)) <= 0) {
+		if ((i = pf_TppMatOpenIP(_matlist, pLicenseFile, 2)) <= 0) {
 			// If this is a just a license timeout issue, take a nap and try again
 			if (i == -33) {
 				cout <<"TP+ -33 DLL Timeout: Retrying " << fileName << endl;
@@ -207,15 +208,15 @@ void TPPMatrix::readTableNames()
 
 //--------------------------------------------------------------------
 //
-const char* TPPMatrix::getTableName(int table)
+char* TPPMatrix::getTableName(int table)
 {
 
-    string c;
+    char* c = "";
 	if (table >= MAX_TABLES || table < 0)
         c = "";
     else
         c = _tableName[table];
-    return c.c_str();
+    return c;
 }
 
 
@@ -288,6 +289,7 @@ void TPPMatrix::createFile(int tables, int zones, const char** matName,
                             const char* fileName)
 {
     time_t ttime = time(NULL);
+    char *pLicenseFile=NULL;
 
     if (_fileOpen == true)
         throw InvalidOperationException();
@@ -296,17 +298,12 @@ void TPPMatrix::createFile(int tables, int zones, const char** matName,
     _nTables = tables;
     _nZones  = zones;
 
-    // work around const char*
-    char *f = new char[strlen(fileName)+1];
-    strcpy(f, fileName);
-
 	_matlist = (MATLIST *) malloc ( sizeof (MATLIST) );
-	int returnValue = pf_TppMatSet(&_matlist, TPP, f, zones, tables);
 
-    delete f;
+	int returnValue = pf_TppMatSet(&_matlist, TPP, fileName, zones, tables);
 
 	if(returnValue==0){
-		cout<<"Error attempting to set matrix in "<<f<<"\n";
+		cout<<"Error attempting to set matrix in "<<fileName<<"\n";
 		throw InvalidOperationException();
 	}
 
@@ -330,7 +327,7 @@ void TPPMatrix::createFile(int tables, int zones, const char** matName,
  	// timeout due to retardation and bad design
 	for (int attempts = 0; attempts<MAX_DLL_ATTEMPTS; attempts++) {
 		// call the dll
-		if ((returnCode = pf_TppMatOpenOP (_matlist, "File ID", "tppOpen()", &ttime, NULL, 2)) <= 0) {
+		if ((returnCode = pf_TppMatOpenOP (_matlist, "File ID", "tppOpen()", &ttime, pLicenseFile, 2)) <= 0) {
 			// If this is a just a license timeout issue, take a nap and try again
 			if (returnCode == -33) {
 				cout <<"TP+ -33 DLL Timeout: Retrying " << fileName << endl;
