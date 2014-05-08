@@ -41,6 +41,10 @@ void tppInitDllNative ()
     // Link DLL
 	HMODULE hMod = LoadLibrary("tppdlibx.dll");
 
+	if (hMod==NULL) {
+		fprintf(stderr, "\n\n## TPPDLIBX.DLL not found.  Check your PATH and license.\n");
+		exit(2);
+	}
 	// assign function pointers
 
 	if(GetProcAddress(hMod,"_FileInquire")!=NULL){ //pre-cube 4
@@ -285,11 +289,11 @@ double TPPMatrix::getValue(int table, int row, int j)
 
 
 //--------------------------------------------------------------------
-void TPPMatrix::createFile(int tables, int zones, char** matName,
-                            char* fileName)
+void TPPMatrix::createFile(int tables, int zones, const char** matName,
+                            const char* fileName)
 {
     time_t ttime = time(NULL);
-   char *pLicenseFile=NULL;
+    char *pLicenseFile=NULL;
 
     if (_fileOpen == true)
         throw InvalidOperationException();
