@@ -11,7 +11,7 @@ ifndef BUILDCFG
   BUILDCFG=Debug
 endif
 ifndef CXXFLAGS
-  CXXFLAGS=-O3 -Wall -Wno-write-strings
+  CXXFLAGS=-g3 -Wall -Wno-write-strings
 endif
 
 SOURCES := $(wildcard *.cpp)
@@ -27,6 +27,7 @@ BDDIR := $(shell if not exist $(BUILDCFG) mkdir $(BUILDCFG))
 #----
 OBJDIR = $(BUILDCFG)
 OBJEXE = $(addprefix $(OBJDIR)/, $(TARGET).exe)
+OBJFLAGS = -static-libgcc
 
 all: $(OBJEXE)
 
@@ -37,5 +38,5 @@ $(OBJDIR)/%.o : %.cpp
 	$(CXX) $(CXXFLAGS) $(EXTRAFLAGS) -c $< -o $@
 
 $(OBJEXE): $(addprefix $(OBJDIR)/, $(OBJECTS))
-	$(CXX) $(EXTRAFLAGS) $^ $(LDLIBS) -o $@
+	$(CXX) $(OBJFLAGS) $^ $(LDLIBS) -o $@
 	$(BINCMD)
