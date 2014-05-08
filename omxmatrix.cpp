@@ -68,7 +68,7 @@ void OMXMatrix::createFile(int tables, int rows, int cols, vector<string> &table
    
     // save the order that matrices are written
     hid_t plist = H5Pcreate (H5P_GROUP_CREATE);
-    H5Pset_link_creation_order(plist, H5P_CRT_ORDER_TRACKED | H5P_CRT_ORDER_INDEXED);
+    H5Pset_link_creation_order(plist, H5P_CRT_ORDER_TRACKED);
    
     // Create folder structure
     H5Gcreate(_h5file, "/data", NULL, plist, NULL);
@@ -127,7 +127,7 @@ void OMXMatrix::openFile(string filename) {
     herr_t status = 0;
     status += H5LTget_attribute_int(_h5file, "/", "SHAPE", &shape[0]);
     if (status < 0) {
-        fprintf(stderr, "ERROR: %s doesn't have table/zone attributes", filename.c_str());
+        fprintf(stderr, "ERROR: %s doesn't have SHAPE attribute\n", filename.c_str());
         exit(2);
     }
     _nRows = shape[0];
@@ -181,7 +181,7 @@ void OMXMatrix::getRow (string table, int row, void *rowptr) {
 
     // Define DATA slab
     if (0 > H5Sselect_hyperslab (_dataspace[table], H5S_SELECT_SET, data_offset, NULL, data_count, NULL)) {
-        fprintf(stderr, "ERROR: Couldn't select DATA subregion for table %d, subrow %d.\n",
+        fprintf(stderr, "ERROR: Couldn't select DATA subregion for table %s, subrow %d.\n",
                 table.c_str(),row);
         exit(2);
     }
@@ -189,7 +189,7 @@ void OMXMatrix::getRow (string table, int row, void *rowptr) {
     // Read the data!
     if (0 > H5Dread(_dataset[table], H5T_NATIVE_DOUBLE, _memspace, _dataspace[table],
             H5P_DEFAULT, rowptr)) {
-        fprintf(stderr, "ERROR: Couldn't read table %d, subrow %d.\n",table.c_str(),row);
+        fprintf(stderr, "ERROR: Couldn't read table %s, subrow %d.\n",table.c_str(),row);
         exit(2);
     }
 }
@@ -256,12 +256,22 @@ void OMXMatrix::readTableNames() {
     _tableLookup.clear();
     _dataset.clear();
     _dataspace.clear();
+    unsigned flags = 0;
 
     hid_t datagroup = H5Gopen(_h5file, "/data", H5P_DEFAULT);
 
-    // this calls _file_info() for every child in /data
-    // in the order they were created.
-    H5Literate(datagroup, H5_INDEX_CRT_ORDER, H5_ITER_INC, NULL, _leaf_info, this);
+    // if group has creation-order index, use it
+    hid_t info = H5Gget_create_plist(datagroup);
+    H5Pget_link_creation_order(info, &flags);
+    H5Pclose(info);
+
+    if (flags & H5P_CRT_ORDER_TRACKED) {
+    	// Call _leaf_info() for every child in /data:
+        H5Literate(datagroup, H5_INDEX_CRT_ORDER, H5_ITER_INC, NULL, _leaf_info, this);
+    } else {
+    	// otherwise just use name order
+    	H5Literate(datagroup, H5_INDEX_NAME, H5_ITER_INC, NULL, _leaf_info, this);
+    }
 
     H5Gclose(datagroup);
 }

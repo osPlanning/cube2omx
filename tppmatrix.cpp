@@ -41,6 +41,10 @@ void tppInitDllNative ()
     // Link DLL
 	HMODULE hMod = LoadLibrary("tppdlibx.dll");
 
+	if (hMod==NULL) {
+		fprintf(stderr, "\n\n## TPPDLIBX.DLL not found.  Check your PATH and license.\n");
+		exit(2);
+	}
 	// assign function pointers
 
 	if(GetProcAddress(hMod,"_FileInquire")!=NULL){ //pre-cube 4
