@@ -13,9 +13,6 @@
 #include "stdutil.h"
 #include "define.h"
 
-int h5_init_tables(hid_t, int, int);
-int h5_write_row(hid_t, char*, int, int, double*);
-
 int convertMat2h5(char *);
 int convertH5toMat(char *);
 string get_h5_name(char *filename);
@@ -31,7 +28,7 @@ int main(int argc, char* argv[])
 {
     // Get cmdline parameters
     // for each input .mat file
-    printf("Cube MAT/OMX Converter\n");
+    cout << "\nCube MAT/OMX Converter (built " << __DATE__ << ")\n";
     int errors = 0;
 
     for (int i=1; i<argc; i++) {
@@ -91,7 +88,7 @@ int convertMat2h5(char *filename) {
         matrix->closeFile();
         omx->closeFile();
 
-    } catch (TPPMatrix::FileOpenException) {
+    } catch (TPPMatrix::FileOpenException&) {
         printf("Can't open %s.",filename);
         return 1;
     }
@@ -129,7 +126,7 @@ int convertH5toMat(char *filename) {
         tpp->closeFile();
         omx->closeFile();
 
-    } catch (TPPMatrix::FileOpenException) {
+    } catch (TPPMatrix::FileOpenException&) {
         printf("Can't open %s.",filename);
         return 1;
     }
@@ -172,7 +169,6 @@ int copy_data(OMXMatrix *omx, TPPMatrix *matrix, int zones, int tables) {
 
 // Copy from TPP to HDF5:
 int copy_data(TPPMatrix *matrix, OMXMatrix *omx, int zones, int tables, vector<string> &matNames) {
-    hid_t       dataset[MAX_TABLES];
     double*     rowdata;
 
     // Set up some scratch space for reading row data
@@ -186,7 +182,7 @@ int copy_data(TPPMatrix *matrix, OMXMatrix *omx, int zones, int tables, vector<s
             // Grab a row of data
             try {
                 matrix->getRow(t, col, rowdata);
-            } catch (TPPMatrix::MatrixReadException) {
+            } catch (TPPMatrix::MatrixReadException&) {
                     fprintf(stderr, "ERROR: Can't read table row %d in table %d!\n", col, t);
                     exit(2);
             }

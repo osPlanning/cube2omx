@@ -299,7 +299,7 @@ void OMXMatrix::init_tables (vector<string> &tableNames) {
     rtn = H5Pset_fill_value(plist, H5T_NATIVE_DOUBLE, &fillvalue);
 
     // Loop on all TP+ tables
-    for (int t=0; t<tableNames.size(); t++) {
+    for (unsigned int t=0; t<tableNames.size(); t++) {
         string tpath = "/data/" + tableNames[t];
         string tname(tableNames[t]);
         

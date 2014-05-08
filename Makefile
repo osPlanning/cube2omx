@@ -3,7 +3,7 @@
 # -----------
 # NOTE this only builds on Windows, so no need for linux details
 
-TARGET = mat2h5
+TARGET = cube2omx
 LIBS = hdf5_hl hdf5 z
 
 # Be sure we have a valid build configuration
