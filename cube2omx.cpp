@@ -31,6 +31,13 @@ int main(int argc, char* argv[])
     cout << "\nCube MAT/OMX Converter (built " << __DATE__ << ")\n";
     int errors = 0;
 
+    if (argc==1) {
+		cout << "\nUsage:  cube2omx.exe  [filename1] [filename2] ...\n";
+		cout << "        - Files ending in .omx or .OMX will be converted from OMX to Cube\n";
+		cout << "        - Files ending in anything else will be converted from Cube to OMX\n\n";
+		exit(0);
+    }
+
     for (int i=1; i<argc; i++) {
         char *tpfilename = argv[i];
         printf("\n\nConverting %s to ",tpfilename);
