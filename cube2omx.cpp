@@ -10,9 +10,6 @@
 #include "tppmatrix.h"
 #include "omxmatrix.h"
 
-#include "stdutil.h"
-#include "define.h"
-
 int convertMat2h5(char *);
 int convertH5toMat(char *);
 string get_h5_name(char *filename);
