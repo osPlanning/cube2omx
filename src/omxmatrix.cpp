@@ -13,8 +13,6 @@
 
 using namespace std;
 
-void printCurrentTime();
-
 // ###########################################################################
 // OMXMatrix:  C++ Helper class to read/write TP+ style matrix tables
 // ---------------------------------------------------------------------------
@@ -214,15 +212,26 @@ void OMXMatrix::closeFile() {
     _fileOpen = false;
 }
 
-// ---- Private functions ---------------------------------------------------
+int OMXMatrix::getCubeNumber(string tablename) {
 
-void printCurrentTime() {
-    time_t timeStart = time(NULL);
-    struct tm *timeinfo;
-    timeinfo = localtime(&timeStart);
-    printf("Time: %s",asctime(timeinfo));
-    return;
+    string path = "/data/" + tablename;
+
+    hid_t leaf = H5Dopen(_h5file, path.c_str(), H5P_DEFAULT);
+    if (leaf<0) return -1;
+
+    herr_t exists = H5LTfind_attribute(leaf, CUBE_MAT_NUMBER);
+    H5Dclose(leaf);    
+
+    if (exists==0) return -1;
+
+    int cubeNumber;
+    int status = H5LTget_attribute_int(_h5file, path.c_str(), CUBE_MAT_NUMBER, &cubeNumber);
+    if (status<0) cubeNumber = -1;
+
+    return cubeNumber;
 }
+
+// ---- Private functions ---------------------------------------------------
 
 hid_t OMXMatrix::openDataset(string table) {
 
@@ -314,7 +323,7 @@ void OMXMatrix::init_tables (vector<string> &tableNames) {
         // Save the something somewhere
         _tableLookup[tname] = t+1;
         int cube_num = t+1;
-        H5LTset_attribute_int(_h5file, tpath.c_str(), "CUBE_MAT_NUMBER", &cube_num, 1);
+        H5LTset_attribute_int(_h5file, tpath.c_str(), CUBE_MAT_NUMBER, &cube_num, 1);
     }
 
     rtn = H5Pclose(plist);

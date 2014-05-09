@@ -24,6 +24,8 @@ using namespace std;
 
 #define  MAX_TABLES  500
 
+#define CUBE_MAT_NUMBER "CUBE_MAT_NUMBER"
+
 class OMXMatrix {
 public:
     OMXMatrix();
@@ -37,6 +39,7 @@ public:
     int      getRows();
     int      getCols();
     int      getTables();
+    int      getCubeNumber(string tablename);
     void     getRow (string table, int row, void *rowptr);  // throws InvalidOperationException, MatrixReadException
     double   getValue(string table, int row, int j);
     string   getTableName(int table);
