@@ -1,5 +1,6 @@
 #include <cstdlib>
 #include <iostream>
+#include <fstream>
 #include <vector>
 #include <sstream>
 #include <string>
@@ -42,6 +43,16 @@ int main(int argc, char* argv[])
     for (int i=1; i<argc; i++) {
         char *tpfilename = argv[i];
         printf("\n\nConverting %s ",tpfilename);
+
+	// Make sure we can open it
+	ifstream file(tpfilename, ifstream::in);
+	if (!file) {
+		fprintf(stderr, "\n** Cannot find/open %s\n", tpfilename);
+		errors++;
+		continue;
+	} else {
+		file.close();
+	}
 
         // Figure out which way we're converting:
         bool is_omx = isOMX(tpfilename);
