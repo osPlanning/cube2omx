@@ -12,8 +12,7 @@
 
 int convertMat2h5(char *);
 int convertH5toMat(char *);
-string get_h5_name(char *filename);
-string get_tpp_name(char *filename);
+string get_new_extension(char *filename, const char *ext);
 
 int generateCubeOrder(map<int,string> &lookup, OMXMatrix* omx, int tables, const char* tnames[]);
 
@@ -35,7 +34,8 @@ int main(int argc, char* argv[])
     if (argc==1) {
 		cout << "\nUsage:  cube2omx.exe  [filename1] [filename2] ...\n";
 		cout << "        - Valid OMX files will be converted to Cube format\n";
-		cout << "        - Cube files will be converted to OMX\n\n";
+		cout << "        - Cube files will be converted to OMX\n";
+		cout << "        - Output files will have .omx or .mat extension\n\n";
 		exit(0);
     }
 
@@ -109,7 +109,7 @@ int convertMat2h5(char *filename) {
         }
 
         // Create OMX file
-        string h5_name = get_h5_name(filename);
+        string h5_name = get_new_extension(filename, ".omx");
         omx = new OMXMatrix();
         omx->createFile(tables, rows, cols, matNames, h5_name);
 
@@ -194,7 +194,7 @@ int convertH5toMat(char *filename) {
 
     // create TPP file
     try {
-        string tppname = get_tpp_name(filename);
+        string tppname = get_new_extension(filename, ".mat");
         tpp = new TPPMatrix();
         tpp->createFile(tables, zones, tnames_cube_order, tppname.c_str());
 
@@ -275,29 +275,15 @@ int copy_data(TPPMatrix *matrix, OMXMatrix *omx, int zones, int tables, vector<s
 }
 
 
-// Replace .mat with .h5 in filename
-string get_h5_name(char *filename) {
+// Replace extension .mat with .h5 in filename, for example
+string get_new_extension(char *filename, const char* ext) {
 
     string str(filename);
-    size_t dot = str.rfind('.');
+    unsigned found = str.find_last_of('.');
 
-    str.erase(dot,4);
-    str.insert(dot,".omx");
-    printf("%s\n",str.c_str());
+    string newname = str.substr(0,found) + ext;
+    printf("%s\n",newname.c_str());
 
-    return str;
-}
-
-// Replace .mat with .h5 in filename
-string get_tpp_name(char *filename) {
-
-    string str(filename);
-    size_t dot = str.rfind('.');
-
-    str.erase(dot,4);
-    str.insert(dot,".mat");
-    printf("%s\n",str.c_str());
-
-    return str;
+    return newname;
 }
 
