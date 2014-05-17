@@ -26,8 +26,24 @@ REQUIREMENTS
 
 USAGE
 
-cube2omx.exe  [filename1] [filename2] ...
+`cube2omx.exe  [filename1] [filename2] ...`
 * File type will be autodetected; OMX files will be converted to Cube, and vice-versa.
 * OMX files will be named filename.omx
 * Cube files will be named filename.mat
+
+BUILDING FROM SOURCE
+--------------------
+
+Built using MinGW (GCC) toolchain:
+http://www.mingw.org/
+
+Additional required libraries:
+* HDF5, HDF5_HL, and SZIP: http://www.hdfgroup.org/HDF5/
+* zlib: http://www.zlib.net/
+
+Once your toolchain is set up you can run make using the supplied
+Makefile, or run the following all-in-one command:
+
+`g++ -static-libgcc *.cpp -lhdf5_hl -lhdf5 -lsz -lz -o cube2omx.exe`
+
 
