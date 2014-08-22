@@ -22,7 +22,7 @@ REQUIREMENTS
 
 * Windows (XP or higher)
 * Requires a valid Citilabs Cube license
-* Requires Citilabs TPPDLIBX.DLL file to be in the system PATH
+* Requires Citilabs TPPDLIBX.DLL file to be in the system PATH (i.e. C:\Program Files (x86)\Citilabs\CubeVoyager)
 
 USAGE
 
@@ -30,6 +30,9 @@ USAGE
 * File type will be autodetected; OMX files will be converted to Cube, and vice-versa.
 * OMX files will be named filename.omx
 * Cube files will be named filename.mat
+
+TROUBLESHOOTING
+* If it cannot find TPPLIBX.DLL, then make sure your path is correct by trying to run cube voyager from the command line `> voyager.exe <some script name>.s`
 
 BUILDING FROM SOURCE
 --------------------
