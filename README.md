@@ -5,7 +5,7 @@ A simple matrix converter for Citilabs Cube matrices to/from OMX.
 
 OMX Website:
 ------------
-https://sites.google.com/site/openmodeldata/
+https://github.com/osPlanning/omx
 
 
 Notes
